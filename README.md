@@ -1,115 +1,133 @@
-# Copilot Agent Collections
+# DS Agents Index
 
-A collection of **GitHub Copilot custom agents** for BI reporting, data exploration, and productivity. Each folder contains a self-contained set of agents — `cd` into the one you want and start Copilot.
+A collection of **GitHub Copilot CLI custom agents** that work together as a report &
+dashboard "factory." A single orchestrator coordinates specialized planning, engineering,
+testing, and design agents to build production-ready reports across multiple frameworks
+(**Power BI**, **Grafana**, and **HTML**).
 
-## What Are These?
+All agents live in [`.github/agents/`](.github/agents/) as `*.agent.md` files.
 
-These are `.agent.md` files that live in `.github/agents/` directories. When you run **GitHub Copilot** (CLI or VS Code) from a folder containing these files, Copilot automatically discovers them and gains specialized capabilities — like building Power BI reports, writing KQL queries, or answering questions about your data.
+---
 
-**You don't need to configure anything.** Just navigate to the right folder and start talking to Copilot.
+## Quick start
 
-## Prerequisites
+GitHub Copilot CLI auto-discovers agents from `.github/agents/` in the **git repo root**
+(or current working directory), and from your global `~/.copilot/agents/` folder.
 
-1. A **GitHub Copilot** subscription (Individual, Business, or Enterprise)
-2. One of the following:
-   - [**GitHub Copilot CLI**](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) (terminal)
-   - **VS Code** with the [GitHub Copilot Chat](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat) extension
-
-## Getting Started
+### Option A — use them in this repo (recommended)
 
 ```bash
-# 1. Clone the repo
-git clone <this-repo-url>
-
-# 2. Navigate to the agent collection you want
-cd BI-Report-Builder
-
-# 3. Launch Copilot
+git clone https://github.com/Cameron-Bayer/DS-Agents-Index.git
+cd DS-Agents-Index
 copilot
 ```
 
-Or open the folder in **VS Code** — Copilot Chat will auto-discover the agents.
+Then list/select an agent inside Copilot CLI:
+
+```
+/agent
+```
+
+Most workflows start with the **`report-orchestrator`**, which drives the others.
+
+### Option B — install globally
+
+Copy the agent files into your personal agents folder so they're available in every session:
+
+```bash
+# macOS / Linux
+cp .github/agents/*.agent.md ~/.copilot/agents/
+
+# Windows (PowerShell)
+Copy-Item .github\agents\*.agent.md $HOME\.copilot\agents\
+```
 
 ---
 
-## Agent Collections
+## Prerequisites
 
-### [`BI-Report-Builder/`](./BI-Report-Builder)
+These agents call out to external systems. Depending on which agents you use, you may need:
 
-**Full-service report and dashboard factory.** An orchestrator coordinates 15+ specialized agents to build, test, and design reports end-to-end.
+- **Azure Data Explorer / Kusto** access (data profiling, KQL, live data sources)
+- **Microsoft Fabric / Power BI** workspace + permissions (build, publish, refresh, snapshot, Q&A)
+- **Power BI Desktop** installed (used by `powerbi-tester` for trace-log validation)
+- **Grafana** instance (optional, for `grafana-tester` end-to-end import)
+- **Node.js** (for `html-engineer` live-mode proxy server)
+- **Microsoft Teams / WorkIQ** access (for `meeting-task-router`)
 
-| Capability | Description |
-|------------|-------------|
-| **Build reports from scratch** | Describe what you need → spec → layout → build → test → design review |
-| **Edit existing reports** | Make scoped modifications to Power BI, Grafana, or HTML projects |
-| **Meeting follow-ups** | Parse Teams meeting action items and route them to the right reports |
-| **Template quick start** | Pick a pre-built template to skip most intake Q&A |
-| **Q&A on your data** | Ask natural-language questions — get answers via DAX against your semantic models |
-| **KQL / Kusto queries** | Explore Azure Data Explorer clusters, build and run optimized KQL |
-| **Power BI → PowerPoint** | Generate PPTX files with live, interactive Power BI visual connections |
-
-**Supported frameworks:** Power BI (full) · Grafana (experimental) · HTML/CSS/JS (experimental)
-
-**Agent lineup:**
-
-```
-report-orchestrator          — project manager, coordinates the pipeline
-├── report-type-advisor      — helps you decide what kind of report to build
-├── spec-writer              — deep requirements analysis → spec.md
-├── data-profiler            — profiles data sources for distributions & KPI candidates
-├── layout-strategist        — generates competing layout blueprints
-├── ab-evaluator             — compares layouts, picks the winner
-├── powerbi-engineer         — builds/modifies PBIP project files
-├── powerbi-tester           — validates PBIP projects for correctness
-├── grafana-engineer         — builds/modifies Grafana dashboard JSON
-├── grafana-tester           — validates Grafana dashboards
-├── html-engineer            — builds/modifies HTML/CSS/JS reports
-├── html-tester              — validates HTML reports
-├── designer                 — reviews visual quality and executive readability
-├── semantic-model-analyzer  — checks data source queries for schema mismatches
-├── meeting-task-router      — parses meeting follow-ups → routes to projects
-├── QandA                    — natural-language Q&A against Power BI semantic models
-├── kusto-expert             — KQL query builder and Kusto cluster explorer
-└── powerbi-to-pptx          — generates PPTX with live Power BI visuals
-```
-
-**Example prompts:**
-- *"Build a Power BI sales dashboard with revenue by region and monthly trends"*
-- *"What were our top 10 customers by revenue last quarter?"* (Q&A mode)
-- *"Connect to my Kusto cluster and show me error rates for the last 24 hours"*
-- *"Create a PowerPoint from my Sales Overview report"*
+Agent files do **not** carry credentials or MCP/tool configuration — configure those
+separately in your environment (e.g. via `/mcp` in Copilot CLI).
 
 ---
 
-### [`TestAgents/`](./TestAgents)
+## The agents
 
-**Lightweight / experimental agent setup.** Contains the report-orchestrator agent for testing and development purposes.
+### Orchestration & intake
 
-**Agents:** `report-orchestrator`
+| Agent | What it does |
+|-------|--------------|
+| **report-orchestrator** | End-to-end orchestrator. Four modes: build new reports, edit existing projects, implement Teams meeting follow-ups, and template quick-start. Coordinates all other agents and manages error budgets. |
+| **report-type-advisor** | Interviews the user and recommends a report archetype and the best framework (Power BI / Grafana / HTML). Produces a "report brief." Framework-agnostic. |
+| **meeting-task-router** | Fetches follow-up tasks from Microsoft Teams meeting summaries and routes them to the correct report/dashboard project. |
+| **spec-writer** | Deep requirements analyst. Turns raw input into a comprehensive `spec.md` that all downstream agents consume. |
+
+### Planning & data
+
+| Agent | What it does |
+|-------|--------------|
+| **data-profiler** | Profiles data sources (Kusto/ADX, SharePoint, Excel, SQL) — distributions, cardinality, outliers, null rates, correlations — to inform KPI and visual choices. |
+| **layout-strategist** | Generates 2–3 competing layout blueprints from a spec for A/B comparison. |
+| **ab-evaluator** | Scores 2–3 layout or report variants side-by-side and recommends a winner. |
+| **semantic-model-analyzer** | Analyzes semantic-model data sources (KQL, SQL, M) for schema mismatches and generates M transformation layers. _(Power BI)_ |
+| **kusto-expert** | Expert KQL query builder/analyzer. Connects to ADX clusters, explores schemas, and generates optimized queries. |
+
+### Framework engineers
+
+| Agent | What it does |
+|-------|--------------|
+| **powerbi-engineer** | Builds production-ready PBIP reports and semantic models (PBIR format, TMDL, DAX). Publishes/refreshes in Microsoft Fabric. |
+| **grafana-engineer** | _[Experimental]_ Builds and modifies Grafana dashboard JSON from spec + blueprints. |
+| **html-engineer** | _[Experimental]_ Builds responsive HTML/CSS/JS dashboards (Chart.js), static or live-proxy modes. |
+
+### Framework testers
+
+| Agent | What it does |
+|-------|--------------|
+| **powerbi-tester** | Two-phase validation of PBIP projects (schema/structure + Power BI Desktop trace logs). |
+| **grafana-tester** | Validates Grafana dashboard JSON; optionally imports to a running instance. |
+| **html-tester** | Validates HTML/CSS/JS reports for correctness, accessibility, and visual quality. |
+
+### Design, publish & query
+
+| Agent | What it does |
+|-------|--------------|
+| **designer** | Executive dashboard design reviewer. Produces prioritized, actionable design suggestions (does not modify files). |
+| **powerbi-snapshot** | Captures PNG snapshots of Power BI report pages/visuals via the Power BI REST API. |
+| **QandA** | Interactive Q&A over Power BI reports — generates and runs DAX against a selected semantic model. |
 
 ---
 
-## Adding New Agent Collections
-
-To add a new set of agents:
-
-1. Create a new folder at the repo root (e.g., `DevOps-Agents/`)
-2. Add a `.github/agents/` directory inside it
-3. Drop your `.agent.md` files in there
-4. Update this README with a description of the new collection
+## Typical flow
 
 ```
-your-new-collection/
-  .github/
-    agents/
-      my-agent.agent.md
-      another-agent.agent.md
+report-type-advisor  →  spec-writer  →  data-profiler
+        │                    │
+        ▼                    ▼
+ layout-strategist  →  ab-evaluator
+        │
+        ▼
+ framework engineer  ⇄  framework tester      (powerbi / grafana / html)
+        │
+        ▼
+     designer  →  publish / snapshot  →  QandA
 ```
 
-## Troubleshooting
+The **report-orchestrator** drives this pipeline and manages handoffs between agents.
 
-| Issue | Fix |
-|-------|-----|
-| Agent not found | Make sure you `cd` into the **collection folder** (not the repo root) before launching Copilot |
-| "No agents available" | Ensure your Copilot subscription is active and the CLI/extension is up to date |
-| Agent seems generic | Confirm the `.github/agents/` folder exists in your current directory |
+---
+
+## Notes
+
+- `architecture.md` (in `.github/agents/`) documents the shared multi-framework contract
+  referenced by the engineer agents.
+- Agents marked **[Experimental]** (Grafana, HTML) are less mature than the Power BI path.

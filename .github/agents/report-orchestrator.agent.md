@@ -611,7 +611,8 @@ Would you like me to package this for distribution?
 If the user wants to publish:
 1. Ask which Fabric workspace to use
 2. Invoke the **powerbi-engineer** agent with publish instructions
-3. Confirm successful publication
+3. **CRITICAL**: The engineer must poll the `x-ms-operation-id` from the `updateDefinition` 202 response to confirm the operation succeeded. A 202 does NOT mean the update was applied — it only means the request was queued. The engineer must also verify the update by calling `getDefinition` and checking the returned payload contains the expected changes. See the powerbi-engineer's "Key Gotchas for Fabric Publishing" section 7 and 8 for the full pattern.
+4. Confirm successful publication only after verification passes
 
 ---
 

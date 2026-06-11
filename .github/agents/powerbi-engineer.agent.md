@@ -1198,6 +1198,18 @@ The report's `definition.pbir` references the semantic model by GUID, so the SM 
 **6. File paths in parts use forward slashes**
 When building the `parts` array, convert Windows backslashes to forward slashes: `definition/tables/WorkItems.tmdl` (not `definition\tables\WorkItems.tmdl`).
 
+**7. `updateDefinition` is asynchronous — ALWAYS poll the operation (CRITICAL)**
+Both `updateDefinition` and `getDefinition` return `202 Accepted` with an `x-ms-operation-id` header. The 202 does NOT mean the operation succeeded — it means the request was queued. You MUST:
+1. Extract the `x-ms-operation-id` from the response headers
+2. Poll `GET /v1/operations/{operationId}` until `status` is `Succeeded` or `Failed`
+3. If `Failed`, read `error` from the response body for details
+4. After `updateDefinition` succeeds, call `getDefinition` and verify the returned payload contains your changes
+
+**Never assume a 202 means the update was applied.** Past failures occurred when the 202 was treated as success without polling — the report appeared to publish successfully but the changes never took effect in Fabric.
+
+**8. Use `Invoke-WebRequest` (not `Invoke-RestMethod`) for updateDefinition**
+`Invoke-RestMethod` discards response headers, making it impossible to extract the `x-ms-operation-id` needed for polling. Always use `Invoke-WebRequest -UseBasicParsing` so you can read `$response.Headers['x-ms-operation-id']`.
+
 ---
 
 ## Output Format
@@ -2487,10 +2499,24 @@ $smBody = @{
     definition = @{ parts = $smParts }
 } | ConvertTo-Json -Depth 10 -Compress
 
-Invoke-RestMethod `
+# IMPORTANT: updateDefinition returns 202 Accepted (async), NOT 200.
+# You MUST poll the operation to confirm it actually succeeded.
+$response = Invoke-WebRequest `
     -Uri "https://api.fabric.microsoft.com/v1/workspaces/$workspaceId/items/$smId/updateDefinition" `
-    -Method Post -Headers $headers -Body $smBody
-# Returns 200 OK on success
+    -Method Post -Headers $headers -Body $smBody -UseBasicParsing
+
+$opId = $response.Headers['x-ms-operation-id']
+if ($opId -is [array]) { $opId = $opId[0] }
+
+# Poll until Succeeded or Failed
+do {
+    Start-Sleep -Seconds 5
+    $opResp = Invoke-RestMethod -Uri "https://api.fabric.microsoft.com/v1/operations/$opId" -Headers $headers
+} while ($opResp.status -notin @("Succeeded", "Failed"))
+
+if ($opResp.status -eq "Failed") {
+    Write-Error "updateDefinition FAILED: $($opResp.error | ConvertTo-Json -Depth 5)"
+}
 ```
 
 ### Update Report Definition
@@ -2499,9 +2525,24 @@ $rptBody = @{
     definition = @{ parts = $rptParts }
 } | ConvertTo-Json -Depth 10 -Compress
 
-Invoke-RestMethod `
+# IMPORTANT: updateDefinition returns 202 Accepted (async), NOT 200.
+# You MUST poll the operation to confirm it actually succeeded.
+$response = Invoke-WebRequest `
     -Uri "https://api.fabric.microsoft.com/v1/workspaces/$workspaceId/items/$rptId/updateDefinition" `
-    -Method Post -Headers $headers -Body $rptBody
+    -Method Post -Headers $headers -Body $rptBody -UseBasicParsing
+
+$opId = $response.Headers['x-ms-operation-id']
+if ($opId -is [array]) { $opId = $opId[0] }
+
+# Poll until Succeeded or Failed
+do {
+    Start-Sleep -Seconds 5
+    $opResp = Invoke-RestMethod -Uri "https://api.fabric.microsoft.com/v1/operations/$opId" -Headers $headers
+} while ($opResp.status -notin @("Succeeded", "Failed"))
+
+if ($opResp.status -eq "Failed") {
+    Write-Error "updateDefinition FAILED: $($opResp.error | ConvertTo-Json -Depth 5)"
+}
 ```
 
 ### Rename an Item
@@ -2525,6 +2566,31 @@ Invoke-RestMethod `
 - The `definition.pbir` for the report must still use `byConnection` with the SM GUID
 - After updating the SM definition, trigger a refresh to reload data
 - After updating the report definition, users need to refresh their browser/app to see changes
+- **`updateDefinition` returns 202 (async), NOT 200** — you MUST poll the operation status via the `x-ms-operation-id` response header to confirm it succeeded. A 202 response does NOT mean the update was applied — the operation can still fail silently.
+- **Always verify updates took effect** — after the operation succeeds, call `POST /items/{id}/getDefinition` (also async — poll its operation too), then decode and inspect the returned payload to confirm your changes are present. This catches edge cases where the API accepts the request but doesn't apply all changes.
+
+### Verifying an Update (MANDATORY)
+After `updateDefinition` succeeds, always verify:
+```powershell
+# 1. Call getDefinition (async — returns 202)
+$resp = Invoke-WebRequest `
+    -Uri "https://api.fabric.microsoft.com/v1/workspaces/$workspaceId/items/$itemId/getDefinition" `
+    -Method Post -Headers $headers -UseBasicParsing
+$opId = $resp.Headers['x-ms-operation-id']
+if ($opId -is [array]) { $opId = $opId[0] }
+
+# 2. Poll until complete
+do {
+    Start-Sleep -Seconds 5
+    $opResp = Invoke-RestMethod -Uri "https://api.fabric.microsoft.com/v1/operations/$opId" -Headers $headers
+} while ($opResp.status -notin @("Succeeded", "Failed"))
+
+# 3. Download the result and verify key content
+$result = Invoke-RestMethod -Uri "https://api.fabric.microsoft.com/v1/operations/$opId/result" -Headers $headers
+$targetPart = $result.definition.parts | Where-Object { $_.path -eq "definition/pages/page1/visuals/myVisual/visual.json" }
+$decoded = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($targetPart.payload))
+# Check that your expected changes are present in $decoded
+```
 
 ---
 
