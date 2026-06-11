@@ -14,7 +14,7 @@ All agents live in [`.github/agents/`](.github/agents/) as `*.agent.md` files.
 GitHub Copilot CLI auto-discovers agents from `.github/agents/` in the **git repo root**
 (or current working directory), and from your global `~/.copilot/agents/` folder.
 
-### Option A — use them in this repo (recommended)
+### Use them in this repo (recommended)
 
 ```bash
 git clone https://github.com/Cameron-Bayer/BI-Report-Builder-Agents.git
@@ -30,7 +30,69 @@ Then list/select an agent inside Copilot CLI:
 
 Most workflows start with the **`report-orchestrator`**, which drives the others.
 
-### Option B — install globally
+---
+
+## Prompting the orchestrator
+
+Once you've selected **`report-orchestrator`**, just describe what you want in plain
+language. Two things make a big difference:
+
+### 1. Give it the path to your `.pbip` file
+
+The Power BI agents work on **PBIP projects on disk** — not reports living in Fabric.
+So your prompt should include the full path to the `.pbip` file (or the project folder)
+you want to work on. For example:
+
+```
+Edit the report at C:\Users\me\Reports\SalesDashboard\SalesDashboard.pbip
+```
+
+> **Working with a Fabric report?** Download it from Fabric, save it as a `.pbip`,
+> point the orchestrator at that file, then re-upload the report to Fabric when you're done.
+
+### 2. Tell it what you want changed
+
+Be specific about the kinds of edits you want. The orchestrator (via the
+`powerbi-engineer`) can change things like:
+
+- **Visuals** — add, remove, resize, or reposition charts, cards, tables, and KPIs
+- **Pages** — add or remove report pages, rename them, reorder them
+- **DAX** — add or modify measures and calculated columns
+- **Data model** — adjust table relationships and semantic-model structure
+- **Filters & interactions** — page/visual filters, slicers, bookmarks, drillthrough
+- **Formatting** — themes, colors, fonts, conditional formatting, layout/spacing
+- **Data sources** — Kusto/ADX, SharePoint, Excel, and SQL connections
+
+Example prompts:
+
+```
+Open SalesDashboard.pbip and add a KPI card for total revenue at the top of page 1,
+then add a new page with a monthly trend line chart.
+```
+
+```
+In C:\Reports\Ops\Ops.pbip, change the theme to dark, fix the broken date filter on
+the Overview page, and add a DAX measure for week-over-week growth.
+```
+
+The orchestrator will ask a few focused follow-up questions if it needs more detail,
+then build, test, and (optionally) publish — coordinating the engineer, tester, and
+designer agents for you.
+
+---
+
+## Other ways to start
+
+The orchestrator also supports:
+
+- **Build a new report from scratch** — just describe the report you want and it walks
+  you through requirements, layout options, and build.
+- **Template quick-start** — skip most of the intake Q&A using a pre-built report type.
+- **Meeting follow-ups** — implement action items pulled from a Teams meeting summary.
+
+---
+
+### Install globally (optional)
 
 Copy the agent files into your personal agents folder so they're available in every session:
 
