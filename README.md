@@ -1,4 +1,4 @@
-# DS Agents Index
+# BI Report Builder Agents
 
 A collection of **GitHub Copilot CLI custom agents** that work together as a report &
 dashboard "factory." A single orchestrator coordinates specialized planning, engineering,
@@ -17,8 +17,8 @@ GitHub Copilot CLI auto-discovers agents from `.github/agents/` in the **git rep
 ### Option A — use them in this repo (recommended)
 
 ```bash
-git clone https://github.com/Cameron-Bayer/DS-Agents-Index.git
-cd DS-Agents-Index
+git clone https://github.com/Cameron-Bayer/BI-Report-Builder-Agents.git
+cd BI-Report-Builder-Agents
 copilot
 ```
 
